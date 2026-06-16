@@ -1,12 +1,14 @@
 // src/components/DecisionCards.jsx
 
-export default function DecisionCards({ round, roundState, onSelect, onSubmit }) {
-  const { selected, submitted } = roundState
+export default function DecisionCards({ round, roundState, onSelect, onSubmit, showThoughtBox = false, onThoughtChange }) {
+  const { selected, submitted, thought = '' } = roundState
 
   return (
     <div style={{ marginBottom: '1rem' }}>
       <p style={{ fontSize: '12.5px', color: 'var(--gray-dk)', marginBottom: '10px' }}>
-        Select the best response — teams discuss first, then the facilitator clicks.
+        {showThoughtBox
+          ? 'Discuss as a team, jot your thinking below, then lock in your answer.'
+          : 'Select the best response — teams discuss first, then the facilitator clicks.'}
       </p>
 
       <div style={{
@@ -69,6 +71,34 @@ export default function DecisionCards({ round, roundState, onSelect, onSubmit })
           )
         })}
       </div>
+
+      {showThoughtBox && (
+        <div style={{ marginBottom: '12px' }}>
+          <label
+            htmlFor="team-thought"
+            style={{
+              display: 'block', fontFamily: 'var(--font-head)', fontWeight: 700,
+              fontSize: '11px', color: 'var(--blue)', letterSpacing: '0.05em', marginBottom: '6px',
+            }}
+          >
+            YOUR TEAM’S THINKING <span style={{ color: 'var(--gray-dk)', fontWeight: 400, letterSpacing: 0 }}>(optional)</span>
+          </label>
+          <textarea
+            id="team-thought"
+            value={thought}
+            disabled={submitted}
+            onChange={e => onThoughtChange && onThoughtChange(e.target.value)}
+            placeholder="What’s your reasoning? Jot it here before you lock in…"
+            rows={3}
+            style={{
+              width: '100%', resize: 'vertical', padding: '10px 12px',
+              fontFamily: 'var(--font-body)', fontSize: '13px', color: 'var(--navy)',
+              border: '1.5px solid var(--peri)', borderRadius: '10px',
+              background: submitted ? 'var(--gray-lt)' : '#fff',
+            }}
+          />
+        </div>
+      )}
 
       {!submitted && (
         <button

@@ -1,9 +1,13 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { rounds, debriefItems, discussionQuestions, dummyTeams, snapshotCTA } from './data/rounds.js'
 import orgProfile from './data/orgProfile.js'
 import { playSound, setMuted } from './utils/sound.js'
+import { isSupabaseConfigured } from './lib/supabase.js'
+import { fetchTeams, subscribeTeams, updateTeamScore, saveSubmission } from './lib/workshop.js'
 
 import Header      from './components/Header.jsx'
+import Setup       from './components/Setup.jsx'
+import WorkshopBar from './components/WorkshopBar.jsx'
 import CashBar     from './components/CashBar.jsx'
 import RoundTabs   from './components/RoundTabs.jsx'
 import OrgProfile  from './components/OrgProfile.jsx'
@@ -19,6 +23,7 @@ const initialRoundStates = rounds.map(() => ({
   selected: null,    // card index 0-3, or null
   submitted: false,
   pointsEarned: null,
+  thought: '',       // online team's typed thoughts for this round
 }))
 
 // Dummy team accumulated scores after each round
@@ -30,8 +35,8 @@ function getDummyScores(roundsCompleted) {
 }
 
 export default function App() {
-  const [screen, setScreen]           = useState('intro')
-  // 'intro' | 'game' | 'debrief' | 'snapshot'
+  const [screen, setScreen]           = useState('setup')
+  // 'setup' | 'intro' | 'game' | 'debrief' | 'snapshot'
 
   const [currentRound, setCurrentRound] = useState(0)  // 0-indexed
   const [roundStates, setRoundStates]   = useState(initialRoundStates)
@@ -40,12 +45,54 @@ export default function App() {
   const [muted, setMutedState]          = useState(false)
   const [gameStarted, setGameStarted]   = useState(false)
 
+  // Workshop / multiplayer state
+  const [workshop, setWorkshop]   = useState(null)  // { id, code } or null (local play)
+  const [team, setTeam]           = useState(null)  // { id, name, mode }
+  const [isHost, setIsHost]       = useState(false)
+  const [liveTeams, setLiveTeams] = useState([])    // teams from Supabase realtime
+
+  const online = team?.mode === 'online'
+
+  // Subscribe to live team changes for the active workshop and keep the
+  // scoreboard in sync. The async load sets state only after the fetch
+  // resolves, and the `active` guard prevents updates after unmount.
+  useEffect(() => {
+    if (!workshop || !isSupabaseConfigured) return
+    let active = true
+    const load = async () => {
+      try {
+        const teams = await fetchTeams(workshop.id)
+        if (active) setLiveTeams(teams)
+      } catch {
+        /* transient network error — the next realtime event will refresh */
+      }
+    }
+    load()
+    const unsubscribe = subscribeTeams(workshop.id, load)
+    return () => { active = false; unsubscribe() }
+  }, [workshop])
+
   function handleToggleMute() {
     setMutedState(prev => {
       const next = !prev
       setMuted(next)
       return next
     })
+  }
+
+  function handleLocalStart({ name, mode }) {
+    setTeam({ id: 'local', name, mode })
+    setWorkshop(null)
+    setIsHost(false)
+    setScreen('intro')
+  }
+
+  function handleJoined({ workshop: ws, team: t, isHost: host }) {
+    playSound('reveal')
+    setTeam({ id: t.id, name: t.name, mode: t.mode })
+    setWorkshop({ id: ws.id, code: ws.code })
+    setIsHost(Boolean(host))
+    setScreen('intro')
   }
 
   function startGame() {
@@ -68,8 +115,21 @@ export default function App() {
   // Number of rounds whose reveal has been shown
   const roundsRevealed = roundStates.filter(r => r.submitted).length
 
-  // Scoreboard: your team + dummy teams
   const yourScore = score
+
+  // Scoreboard rows: real teams from the workshop, or just "you" when local.
+  // Keep our own row in sync with local score (DB write may lag a beat).
+  const realTeams = workshop
+    ? liveTeams.map(t => ({
+        id: t.id,
+        name: t.name,
+        score: t.id === team?.id ? yourScore : t.score,
+        isYou: t.id === team?.id,
+      }))
+    : [{ id: 'you', name: team?.name || 'Your team', score: yourScore, isYou: true }]
+
+  // Dummy teams only fill in when fewer than two real teams have joined.
+  const showDummies = realTeams.length < 2
   const dummyScores = getDummyScores(roundsRevealed)
 
   function handleSelectCard(cardIndex) {
@@ -80,16 +140,37 @@ export default function App() {
     ))
   }
 
+  function handleThoughtChange(text) {
+    if (roundStates[currentRound].submitted) return
+    setRoundStates(prev => prev.map((rs, i) =>
+      i === currentRound ? { ...rs, thought: text } : rs
+    ))
+  }
+
   function handleSubmit() {
     const rs = roundStates[currentRound]
     if (rs.selected === null || rs.submitted) return
     const card = rounds[currentRound].cards[rs.selected]
     const pts  = card.pointValue
+    const newScore = score + pts
     playSound(pts === 30 ? 'correct' : pts === 10 ? 'partial' : 'wrong')
-    setScore(prev => prev + pts)
+    setScore(newScore)
     setRoundStates(prev => prev.map((r, i) =>
       i === currentRound ? { ...r, submitted: true, pointsEarned: pts } : r
     ))
+
+    // Sync to the shared workshop (fire-and-forget; never blocks gameplay).
+    if (workshop && team && isSupabaseConfigured) {
+      saveSubmission({
+        workshopId: workshop.id,
+        teamId: team.id,
+        round: currentRound,
+        choice: rs.selected,
+        points: pts,
+        thought: online ? rs.thought : undefined,
+      }).catch(() => {})
+      updateTeamScore(team.id, newScore).catch(() => {})
+    }
   }
 
   function handleNextRound() {
@@ -128,6 +209,9 @@ export default function App() {
     setScore(0)
     setDebriefStep(0)
     setGameStarted(false)
+    if (workshop && team && isSupabaseConfigured) {
+      updateTeamScore(team.id, 0).catch(() => {})
+    }
   }
 
   const currentRoundData  = rounds[currentRound]
@@ -136,6 +220,18 @@ export default function App() {
   return (
     <div className="app-shell">
       <Header muted={muted} onToggleMute={handleToggleMute} />
+
+      {screen === 'setup' && (
+        <Setup
+          configured={isSupabaseConfigured}
+          onLocalStart={handleLocalStart}
+          onJoined={handleJoined}
+        />
+      )}
+
+      {workshop && screen !== 'setup' && (
+        <WorkshopBar code={workshop.code} isHost={isHost} teamName={team?.name} mode={team?.mode} />
+      )}
 
       {screen === 'intro' && (
         <OrgProfile
@@ -188,6 +284,8 @@ export default function App() {
             roundState={currentRoundState}
             onSelect={handleSelectCard}
             onSubmit={handleSubmit}
+            showThoughtBox={online}
+            onThoughtChange={handleThoughtChange}
           />
 
           {currentRoundState.submitted && (
@@ -200,8 +298,8 @@ export default function App() {
           )}
 
           <Scoreboard
-            yourScore={yourScore}
-            dummyScores={dummyScores}
+            teams={realTeams}
+            dummyScores={showDummies ? dummyScores : []}
             maxScore={90}
           />
         </>
