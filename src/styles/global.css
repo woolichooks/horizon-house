@@ -133,6 +133,12 @@ body {
   to   { opacity: 1; transform: translateY(0); }
 }
 
+/* Snapshot hero meta inputs sit on the blue hero — keep placeholders white. */
+.snapshot-meta-input::placeholder {
+  color: rgba(255, 255, 255, 0.8);
+  opacity: 1; /* Firefox dims placeholders by default */
+}
+
 /* ── Utility ────────────────────────────────────────────────────────────── */
 .sr-only {
   position: absolute; width: 1px; height: 1px;

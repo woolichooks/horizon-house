@@ -182,6 +182,7 @@ export default function FinancialHealthSnapshot({ orgName = '', onRestart }) {
                 {f.label.toUpperCase()}
               </div>
               <input
+                className="snapshot-meta-input"
                 value={f.value}
                 onChange={e => f.onChange(e.target.value)}
                 readOnly={f.readOnly}
