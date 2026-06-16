@@ -8,7 +8,7 @@
 //   orgName   {string}  — pre-filled from OrgProfile if available
 //   onRestart {fn}      — optional, returns to intro screen
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import { checklistSections, scoreInterpretation } from '../data/checklistData.js'
 import { isSupabaseConfigured } from '../lib/supabase.js'
 import { saveChecklistResponse, makeResponseId, buildSnapshotMailto } from '../lib/checklist.js'
@@ -129,40 +129,69 @@ export default function FinancialHealthSnapshot({ orgName = '', onRestart, works
     })
 
     const answered = yes + no
+    const marked = yes + no + na // anything the user has actively marked (incl. N/A)
     const pct = answered > 0 ? Math.round((yes / answered) * 100) : null
     const interp = pct !== null ? scoreInterpretation.find(s => pct >= s.min) : null
     const priorities = [...critGaps.slice(0, 3), ...highPri.slice(0, Math.max(0, 4 - critGaps.length))].slice(0, 4)
 
-    return { yes, no, na, answered, pct, interp, priorities }
+    return { yes, no, na, answered, marked, pct, interp, priorities }
   }, [answers])
 
-  // Auto-save to Supabase (debounced) once at least one item is answered, so a
-  // participant's results are captured even if they never click "Schedule".
+  // ── Auto-save to Supabase ──────────────────────────────────────────────────
+  // Captures responses regardless of whether they email or download. Saves once
+  // anything is marked (including N/A), and flushes on tab-hide / unmount / the
+  // CTA actions so nothing is lost to the debounce window.
+  const savePayload = useMemo(() => ({
+    id: responseId,
+    workshop_id: workshopId,
+    team_id: teamId,
+    org_name: orgInput || null,
+    score: stats.pct,
+    answered: stats.answered,
+    strengths: stats.yes,
+    gaps: stats.no,
+    answers,
+    priorities: stats.priorities,
+    notes: notes || null,
+  }), [responseId, workshopId, teamId, orgInput, notes, answers, stats])
+
+  // Refs keep the latest values available to event-listener / unmount flushes.
+  const payloadRef = useRef(savePayload)
+  const markedRef = useRef(stats.marked)
   useEffect(() => {
-    if (!isSupabaseConfigured || stats.answered === 0) return
-    const t = setTimeout(() => {
-      setSaveState('saving')
-      saveChecklistResponse({
-        id: responseId,
-        workshop_id: workshopId,
-        team_id: teamId,
-        org_name: orgInput || null,
-        score: stats.pct,
-        answered: stats.answered,
-        strengths: stats.yes,
-        gaps: stats.no,
-        answers,
-        priorities: stats.priorities,
-        notes: notes || null,
+    payloadRef.current = savePayload
+    markedRef.current = stats.marked
+  }, [savePayload, stats.marked])
+
+  const flushSave = useCallback(() => {
+    if (!isSupabaseConfigured || markedRef.current === 0) return
+    setSaveState('saving')
+    return saveChecklistResponse(payloadRef.current)
+      .then(() => setSaveState('saved'))
+      .catch((err) => {
+        setSaveState('error')
+        console.error('[Horizon House] checklist save failed:', err?.message || err)
       })
-        .then(() => setSaveState('saved'))
-        .catch((err) => {
-          setSaveState('error')
-          console.error('[Horizon House] checklist save failed:', err?.message || err)
-        })
-    }, 1500)
+  }, [])
+
+  // Debounced save on every change.
+  useEffect(() => {
+    if (!isSupabaseConfigured || stats.marked === 0) return
+    const t = setTimeout(flushSave, 1200)
     return () => clearTimeout(t)
-  }, [answers, orgInput, notes, stats, responseId, workshopId, teamId])
+  }, [savePayload, stats.marked, flushSave])
+
+  // Bulletproof flush: when the tab is hidden/closed, and on unmount.
+  useEffect(() => {
+    const onHide = () => { if (document.visibilityState === 'hidden') flushSave() }
+    window.addEventListener('pagehide', flushSave)
+    document.addEventListener('visibilitychange', onHide)
+    return () => {
+      window.removeEventListener('pagehide', flushSave)
+      document.removeEventListener('visibilitychange', onHide)
+      flushSave() // final save when leaving the checklist screen
+    }
+  }, [flushSave])
 
   // Section badge
   function sectionBadge(sec) {
@@ -193,6 +222,7 @@ export default function FinancialHealthSnapshot({ orgName = '', onRestart, works
   })
 
   function handleDownloadPdf() {
+    flushSave()
     downloadChecklistPdf({
       orgName: orgInput,
       budget: budgetInput,
@@ -470,6 +500,7 @@ export default function FinancialHealthSnapshot({ orgName = '', onRestart, works
         <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
           <a
             href={mailtoHref}
+            onClick={() => flushSave()}
             style={{
               display: 'inline-block',
               background: 'var(--gold)', color: 'var(--navy)',
@@ -494,7 +525,7 @@ export default function FinancialHealthSnapshot({ orgName = '', onRestart, works
           </button>
           {onRestart && (
             <button
-              onClick={onRestart}
+              onClick={() => { flushSave(); onRestart() }}
               style={{
                 background: 'rgba(255,255,255,0.15)',
                 border: '1px solid rgba(255,255,255,0.3)',
@@ -508,13 +539,17 @@ export default function FinancialHealthSnapshot({ orgName = '', onRestart, works
           )}
         </div>
 
-        {isSupabaseConfigured && stats.answered > 0 && (
-          <div style={{ marginTop: '10px', fontSize: '11px', color: 'rgba(255,255,255,0.7)' }}>
-            {saveState === 'saving' && 'Saving your responses…'}
-            {saveState === 'saved' && '✓ Your responses are saved'}
-            {saveState === 'error' && 'Couldn’t save automatically — your PDF/email still work.'}
-          </div>
-        )}
+        {/* Save status — always shown so it's clear whether responses persist. */}
+        <div style={{ marginTop: '10px', fontSize: '11px', color: 'rgba(255,255,255,0.7)' }}>
+          {!isSupabaseConfigured
+            ? 'Local mode — responses aren’t being saved to the database.'
+            : stats.marked === 0
+              ? 'Your responses save automatically once you mark an item.'
+              : saveState === 'saving' ? 'Saving your responses…'
+              : saveState === 'saved' ? '✓ Your responses are saved'
+              : saveState === 'error' ? 'Couldn’t save automatically — your PDF/email still work.'
+              : 'Your responses save automatically.'}
+        </div>
 
         <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.55)', marginTop: '10px', maxWidth: '460px', margin: '10px auto 0' }}>
           Email can’t attach files automatically — the “Schedule” button pre-fills your results in the
