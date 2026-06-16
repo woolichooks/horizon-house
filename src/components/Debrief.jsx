@@ -39,7 +39,7 @@ export default function Debrief({ items, questions, step, finalScore, onNext }) 
           What the CFO would've done from day one
         </h2>
 
-        {items.slice(0, step).map((item, i) => (
+        {items.slice(0, step).map((item) => (
           <div key={item.number} className="fade-in" style={{
             display: 'flex', gap: '12px', marginBottom: '14px',
           }}>

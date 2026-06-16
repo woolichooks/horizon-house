@@ -4,15 +4,15 @@ export default function RevealPanel({ round, roundState, isLastRound, onNext }) 
   const { selected, pointsEarned } = roundState
   const selectedCard = round.cards[selected]
 
-  let resultClass, resultTitle, resultBody
+  let resultTitle, resultBody
   if (pointsEarned === 30) {
-    resultClass = 'ok-bg'; resultTitle = 'CFO-level thinking.'
+    resultTitle = 'CFO-level thinking.'
     resultBody  = round.revealCorrect
   } else if (pointsEarned === 10) {
-    resultClass = 'warn'; resultTitle = 'Reasonable, but not the CFO move.'
+    resultTitle = 'Reasonable, but not the CFO move.'
     resultBody  = round.revealOk
   } else {
-    resultClass = 'danger'; resultTitle = 'This path escalates the crisis.'
+    resultTitle = 'This path escalates the crisis.'
     resultBody  = round.revealMiss
   }
 
