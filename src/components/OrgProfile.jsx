@@ -17,7 +17,7 @@ export default function OrgProfile({ org, onStart }) {
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
             <div style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: '11px', letterSpacing: '0.1em', color: 'rgba(255,255,255,0.6)', marginBottom: '6px' }}>
-              WORKSHOP 10 — HORIZON HOUSE SIMULATION
+              WORKSHOP — HORIZON HOUSE SIMULATION
             </div>
             <h2 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: '28px', color: '#fff', lineHeight: 1.2, margin: 0 }}>
               {org.name}

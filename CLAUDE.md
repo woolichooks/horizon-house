@@ -1,5 +1,5 @@
 # Horizon House: Cash Flow Crisis
-## Claude Code Project Spec — Workshop 10 by Woolichooks
+## Claude Code Project Spec — Workshop by Woolichooks
 
 ---
 
@@ -140,7 +140,7 @@ Each card cycles through: `default → selected → (after submit) correct | wro
 
 ### `<Header />`
 - Woolichooks wordmark in Pacifico (blue, left)
-- "Workshop 10 — Cash Flow Crisis" in Montserrat Bold (white) on blue background bar
+- "Workshop — Cash Flow Crisis" in Montserrat Bold (white) on blue background bar
 - "Horizon House Simulation · 3 escalating rounds" subtitle in muted white
 
 ### `<CashBar />`

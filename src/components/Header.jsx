@@ -31,7 +31,7 @@ export default function Header() {
           lineHeight: 1.2,
           margin: 0,
         }}>
-          Workshop 10 — Cash Flow Crisis
+          Workshop — Cash Flow Crisis
         </h1>
         <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.72)', marginTop: '3px' }}>
           Horizon House Simulation &nbsp;·&nbsp; 3 escalating rounds
