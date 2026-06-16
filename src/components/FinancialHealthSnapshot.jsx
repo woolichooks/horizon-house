@@ -170,7 +170,9 @@ export default function FinancialHealthSnapshot({ orgName = '', onRestart, works
       .then(() => setSaveState('saved'))
       .catch((err) => {
         setSaveState('error')
-        console.error('[Horizon House] checklist save failed:', err?.message || err)
+        console.error('[Horizon House] checklist save failed:', {
+          message: err?.message, code: err?.code, details: err?.details, hint: err?.hint,
+        })
       })
   }, [])
 
