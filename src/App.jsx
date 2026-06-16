@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { rounds, debriefItems, discussionQuestions, dummyTeams, snapshotCTA } from './data/rounds.js'
 import orgProfile from './data/orgProfile.js'
+import { playSound, setMuted } from './utils/sound.js'
 
 import Header      from './components/Header.jsx'
 import CashBar     from './components/CashBar.jsx'
@@ -36,6 +37,20 @@ export default function App() {
   const [roundStates, setRoundStates]   = useState(initialRoundStates)
   const [score, setScore]               = useState(0)
   const [debriefStep, setDebriefStep]   = useState(0)  // 0 = not started, 1–5 = items revealed
+  const [muted, setMutedState]          = useState(false)
+
+  function handleToggleMute() {
+    setMutedState(prev => {
+      const next = !prev
+      setMuted(next)
+      return next
+    })
+  }
+
+  function startGame() {
+    playSound('start')
+    setScreen('game')
+  }
 
   // Cash on hand updates per round reveal
   const cashOnHand = roundStates[0].submitted && rounds[1].cashUpdate
@@ -51,6 +66,7 @@ export default function App() {
 
   function handleSelectCard(cardIndex) {
     if (roundStates[currentRound].submitted) return
+    playSound('select')
     setRoundStates(prev => prev.map((rs, i) =>
       i === currentRound ? { ...rs, selected: cardIndex } : rs
     ))
@@ -61,6 +77,7 @@ export default function App() {
     if (rs.selected === null || rs.submitted) return
     const card = rounds[currentRound].cards[rs.selected]
     const pts  = card.pointValue
+    playSound(pts === 30 ? 'correct' : pts === 10 ? 'partial' : 'wrong')
     setScore(prev => prev + pts)
     setRoundStates(prev => prev.map((r, i) =>
       i === currentRound ? { ...r, submitted: true, pointsEarned: pts } : r
@@ -68,6 +85,7 @@ export default function App() {
   }
 
   function handleNextRound() {
+    playSound('transition')
     if (currentRound < rounds.length - 1) {
       setCurrentRound(prev => prev + 1)
     } else {
@@ -86,13 +104,16 @@ export default function App() {
 
   function handleDebriefNext() {
     if (debriefStep < debriefItems.length) {
+      playSound('reveal')
       setDebriefStep(prev => prev + 1)
     } else {
+      playSound('transition')
       setScreen('snapshot')
     }
   }
 
   function handleRestart() {
+    playSound('reveal')
     setScreen('intro')
     setCurrentRound(0)
     setRoundStates(initialRoundStates)
@@ -105,12 +126,12 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      <Header />
+      <Header muted={muted} onToggleMute={handleToggleMute} />
 
       {screen === 'intro' && (
         <OrgProfile
           org={orgProfile}
-          onStart={() => setScreen('game')}
+          onStart={startGame}
         />
       )}
 

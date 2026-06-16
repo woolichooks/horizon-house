@@ -1,7 +1,7 @@
 // ── Header.jsx ───────────────────────────────────────────────────────────
 // Save as: src/components/Header.jsx
 
-export default function Header() {
+export default function Header({ muted = false, onToggleMute }) {
   return (
     <header style={{
       background: 'var(--blue)',
@@ -37,16 +37,45 @@ export default function Header() {
           Horizon House Simulation &nbsp;·&nbsp; 3 escalating rounds
         </p>
       </div>
-      <div style={{
-        fontFamily: 'var(--font-head)',
-        fontWeight: 700,
-        fontSize: '11px',
-        color: 'rgba(255,255,255,0.55)',
-        letterSpacing: '0.05em',
-        textAlign: 'right',
-      }}>
-        FACILITATED BY<br />
-        <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: '13px' }}>Woolichooks</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+        {onToggleMute && (
+          <button
+            type="button"
+            onClick={onToggleMute}
+            aria-pressed={muted}
+            aria-label={muted ? 'Unmute sound effects' : 'Mute sound effects'}
+            title={muted ? 'Sound off — click to unmute' : 'Sound on — click to mute'}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: 'rgba(255,255,255,0.12)',
+              color: '#fff',
+              border: '1px solid rgba(255,255,255,0.25)',
+              borderRadius: '8px',
+              padding: '7px 11px',
+              cursor: 'pointer',
+              fontFamily: 'var(--font-head)',
+              fontWeight: 700,
+              fontSize: '11px',
+              letterSpacing: '0.04em',
+            }}
+          >
+            <span aria-hidden="true" style={{ fontSize: '14px' }}>{muted ? '🔇' : '🔊'}</span>
+            {muted ? 'SOUND OFF' : 'SOUND ON'}
+          </button>
+        )}
+        <div style={{
+          fontFamily: 'var(--font-head)',
+          fontWeight: 700,
+          fontSize: '11px',
+          color: 'rgba(255,255,255,0.55)',
+          letterSpacing: '0.05em',
+          textAlign: 'right',
+        }}>
+          FACILITATED BY<br />
+          <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: '13px' }}>Woolichooks</span>
+        </div>
       </div>
     </header>
   )
