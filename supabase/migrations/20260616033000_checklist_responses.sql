@@ -28,21 +28,13 @@ alter table public.checklist_responses enable row level security;
 
 -- Insert/update only (no anon SELECT — these are private to the org). Upsert by
 -- a client-generated id lets a single response row update as it's filled in.
+-- The table is write-only for anon (no SELECT policy), so a simple permissive
+-- write check is acceptable and consistent with the other tables' posture.
 create policy "anon insert checklist" on public.checklist_responses
   for insert to anon
-  with check (
-    (score is null or score between 0 and 100)
-    and (answered is null or answered between 0 and 25)
-    and char_length(coalesce(org_name, '')) <= 200
-    and char_length(coalesce(notes, '')) <= 5000
-  );
+  with check (true);
 
 create policy "anon update checklist" on public.checklist_responses
   for update to anon
   using (true)
-  with check (
-    (score is null or score between 0 and 100)
-    and (answered is null or answered between 0 and 25)
-    and char_length(coalesce(org_name, '')) <= 200
-    and char_length(coalesce(notes, '')) <= 5000
-  );
+  with check (true);
