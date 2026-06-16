@@ -92,6 +92,14 @@ export default function App() {
     }
   }
 
+  function handleRestart() {
+    setScreen('intro')
+    setCurrentRound(0)
+    setRoundStates(initialRoundStates)
+    setScore(0)
+    setDebriefStep(0)
+  }
+
   const currentRoundData  = rounds[currentRound]
   const currentRoundState = roundStates[currentRound]
 
@@ -167,7 +175,7 @@ export default function App() {
       )}
 
       {screen === 'snapshot' && (
-        <SnapshotCTA cta={snapshotCTA} />
+        <SnapshotCTA cta={snapshotCTA} onRestart={handleRestart} />
       )}
     </div>
   )

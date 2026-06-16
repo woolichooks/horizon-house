@@ -1,6 +1,6 @@
 // src/components/SnapshotCTA.jsx
 
-export default function SnapshotCTA({ cta }) {
+export default function SnapshotCTA({ cta, onRestart }) {
   return (
     <div className="fade-in">
       <div style={{
@@ -40,6 +40,17 @@ export default function SnapshotCTA({ cta }) {
           {cta.tagline}
         </div>
       </div>
+
+      {onRestart && (
+        <div style={{ textAlign: 'center', marginTop: '1.25rem' }}>
+          <button className="btn btn-outline" onClick={onRestart}>
+            ↺ Play again from the start
+          </button>
+          <p style={{ fontSize: '12px', color: 'var(--gray-dk)', marginTop: '8px' }}>
+            Resets scores and rounds for the next group.
+          </p>
+        </div>
+      )}
     </div>
   )
 }
