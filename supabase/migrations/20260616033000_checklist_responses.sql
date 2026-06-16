@@ -26,6 +26,11 @@ create index if not exists checklist_responses_workshop_idx on public.checklist_
 
 alter table public.checklist_responses enable row level security;
 
+-- Grant the anon role table privileges (RLS still gates rows). Tables created
+-- via the SQL editor don't always inherit Supabase's default grants, so be
+-- explicit — without this, inserts fail before policies are even evaluated.
+grant select, insert, update, delete on public.checklist_responses to anon;
+
 -- Insert/update only (no anon SELECT — these are private to the org). Upsert by
 -- a client-generated id lets a single response row update as it's filled in.
 -- The table is write-only for anon (no SELECT policy), so a simple permissive
