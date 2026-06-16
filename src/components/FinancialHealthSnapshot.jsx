@@ -8,8 +8,11 @@
 //   orgName   {string}  — pre-filled from OrgProfile if available
 //   onRestart {fn}      — optional, returns to intro screen
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { checklistSections, scoreInterpretation } from '../data/checklistData.js'
+import { isSupabaseConfigured } from '../lib/supabase.js'
+import { saveChecklistResponse, makeResponseId, buildSnapshotMailto } from '../lib/checklist.js'
+import { downloadChecklistPdf } from '../lib/checklistPdf.js'
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 const VARIANTS = {
@@ -74,7 +77,7 @@ function AnswerBtn({ label, active, activeVariant, onClick }) {
 }
 
 // ── Main component ─────────────────────────────────────────────────────────
-export default function FinancialHealthSnapshot({ orgName = '', onRestart }) {
+export default function FinancialHealthSnapshot({ orgName = '', onRestart, workshopId = null, teamId = null }) {
   // answers: { [itemId]: 'yes' | 'no' | 'na' | null }
   const [answers, setAnswers] = useState(() => {
     const init = {}
@@ -88,6 +91,8 @@ export default function FinancialHealthSnapshot({ orgName = '', onRestart }) {
   const [openSections, setOpenSections] = useState(new Set(['cash']))
   const [notes, setNotes]         = useState('')
   const [showPriorities, setShowPriorities] = useState(false)
+  const [responseId]              = useState(makeResponseId)
+  const [saveState, setSaveState] = useState('idle') // idle | saving | saved | error
 
   function setAnswer(id, val) {
     setAnswers(prev => ({ ...prev, [id]: prev[id] === val ? null : val }))
@@ -131,6 +136,34 @@ export default function FinancialHealthSnapshot({ orgName = '', onRestart }) {
     return { yes, no, na, answered, pct, interp, priorities }
   }, [answers])
 
+  // Auto-save to Supabase (debounced) once at least one item is answered, so a
+  // participant's results are captured even if they never click "Schedule".
+  useEffect(() => {
+    if (!isSupabaseConfigured || stats.answered === 0) return
+    const t = setTimeout(() => {
+      setSaveState('saving')
+      saveChecklistResponse({
+        id: responseId,
+        workshop_id: workshopId,
+        team_id: teamId,
+        org_name: orgInput || null,
+        score: stats.pct,
+        answered: stats.answered,
+        strengths: stats.yes,
+        gaps: stats.no,
+        answers,
+        priorities: stats.priorities,
+        notes: notes || null,
+      })
+        .then(() => setSaveState('saved'))
+        .catch((err) => {
+          setSaveState('error')
+          console.error('[Horizon House] checklist save failed:', err?.message || err)
+        })
+    }, 1500)
+    return () => clearTimeout(t)
+  }, [answers, orgInput, notes, stats, responseId, workshopId, teamId])
+
   // Section badge
   function sectionBadge(sec) {
     const items = sec.items
@@ -150,6 +183,26 @@ export default function FinancialHealthSnapshot({ orgName = '', onRestart }) {
     : stats.pct >= 80 ? 'var(--ok-txt)'
     : stats.pct >= 55 ? 'var(--warn-txt)'
     : 'var(--danger-txt)'
+
+  const mailtoHref = buildSnapshotMailto({
+    to: 'hello@woolichooks.com',
+    orgName: orgInput,
+    score: stats.pct,
+    interpLabel: stats.interp ? stats.interp.label : null,
+    priorities: stats.priorities,
+  })
+
+  function handleDownloadPdf() {
+    downloadChecklistPdf({
+      orgName: orgInput,
+      budget: budgetInput,
+      date: dateInput,
+      stats,
+      sections: checklistSections,
+      answers,
+      notes,
+    }).catch((err) => console.error('[Horizon House] PDF export failed:', err?.message || err))
+  }
 
   return (
     <div className="fade-in">
@@ -416,7 +469,7 @@ export default function FinancialHealthSnapshot({ orgName = '', onRestart }) {
         </p>
         <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
           <a
-            href="mailto:hello@woolichooks.com"
+            href={mailtoHref}
             style={{
               display: 'inline-block',
               background: 'var(--gold)', color: 'var(--navy)',
@@ -427,6 +480,18 @@ export default function FinancialHealthSnapshot({ orgName = '', onRestart }) {
           >
             Schedule your Snapshot →
           </a>
+          <button
+            onClick={handleDownloadPdf}
+            style={{
+              background: 'rgba(255,255,255,0.15)',
+              border: '1px solid rgba(255,255,255,0.3)',
+              color: '#fff',
+              fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: '13px',
+              padding: '10px 22px', borderRadius: '8px', cursor: 'pointer',
+            }}
+          >
+            ⬇ Download PDF
+          </button>
           {onRestart && (
             <button
               onClick={onRestart}
@@ -442,6 +507,19 @@ export default function FinancialHealthSnapshot({ orgName = '', onRestart }) {
             </button>
           )}
         </div>
+
+        {isSupabaseConfigured && stats.answered > 0 && (
+          <div style={{ marginTop: '10px', fontSize: '11px', color: 'rgba(255,255,255,0.7)' }}>
+            {saveState === 'saving' && 'Saving your responses…'}
+            {saveState === 'saved' && '✓ Your responses are saved'}
+            {saveState === 'error' && 'Couldn’t save automatically — your PDF/email still work.'}
+          </div>
+        )}
+
+        <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.55)', marginTop: '10px', maxWidth: '460px', margin: '10px auto 0' }}>
+          Email can’t attach files automatically — the “Schedule” button pre-fills your results in the
+          message; use “Download PDF” to attach the full checklist.
+        </p>
         <div style={{ marginTop: '1rem', fontFamily: 'var(--font-script)', fontSize: '14px', color: 'rgba(255,255,255,0.65)' }}>
           Woolichooks
         </div>

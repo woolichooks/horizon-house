@@ -11,6 +11,9 @@ local-only mode.
 - `workshops` — one row per facilitator session (`code`, `phase`, `current_round`)
 - `teams` — registered teams (`name`, `mode`, `score`) tied to a workshop
 - `submissions` — one row per team per round (`choice`, `points`, `thought`)
+- `checklist_responses` — Financial Health Snapshot answers + score + top
+  priorities (lead capture). Write-only for anon: no SELECT policy, so
+  responses are private — read them via the dashboard / service role.
 
 All three are in the `supabase_realtime` publication.
 

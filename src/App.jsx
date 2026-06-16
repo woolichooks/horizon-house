@@ -448,7 +448,11 @@ export default function App() {
       )}
 
       {screen === 'checklist' && (
-        <FinancialHealthSnapshot onRestart={handleRestart} />
+        <FinancialHealthSnapshot
+          onRestart={handleRestart}
+          workshopId={workshop?.id ?? null}
+          teamId={team?.id && team.id !== 'local' ? team.id : null}
+        />
       )}
     </div>
   )
