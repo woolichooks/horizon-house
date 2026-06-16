@@ -418,16 +418,24 @@ export default function App() {
       )}
 
       {screen === 'debrief' && (
-        <Debrief
-          items={debriefItems}
-          questions={discussionQuestions}
-          step={debriefStep}
-          finalScore={yourScore}
-          onNext={handleDebriefNext}
-          isHost={isHost}
-          playerSummary={playerSummary}
-          facilitatorSummary={facilitatorSummary}
-        />
+        <>
+          <div style={{ marginBottom: '0.75rem' }}>
+            <button type="button" className="btn btn-outline" onClick={goToStory} style={{ fontSize: '12px', padding: '7px 14px' }}>
+              ← Horizon House story &amp; background
+            </button>
+          </div>
+
+          <Debrief
+            items={debriefItems}
+            questions={discussionQuestions}
+            step={debriefStep}
+            finalScore={yourScore}
+            onNext={handleDebriefNext}
+            isHost={isHost}
+            playerSummary={playerSummary}
+            facilitatorSummary={facilitatorSummary}
+          />
+        </>
       )}
 
       {screen === 'snapshot' && (
