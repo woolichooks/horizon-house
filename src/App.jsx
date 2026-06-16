@@ -168,8 +168,9 @@ export default function App() {
         choice: rs.selected,
         points: pts,
         thought: online ? rs.thought : undefined,
-      }).catch(() => {})
-      updateTeamScore(team.id, newScore).catch(() => {})
+      }).catch(err => console.error('[Horizon House] saveSubmission failed:', err?.message || err))
+      updateTeamScore(team.id, newScore)
+        .catch(err => console.error('[Horizon House] updateTeamScore failed:', err?.message || err))
     }
   }
 
@@ -210,7 +211,8 @@ export default function App() {
     setDebriefStep(0)
     setGameStarted(false)
     if (workshop && team && isSupabaseConfigured) {
-      updateTeamScore(team.id, 0).catch(() => {})
+      updateTeamScore(team.id, 0)
+        .catch(err => console.error('[Horizon House] updateTeamScore (reset) failed:', err?.message || err))
     }
   }
 
