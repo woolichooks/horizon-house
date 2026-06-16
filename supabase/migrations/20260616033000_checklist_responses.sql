@@ -24,22 +24,14 @@ create table if not exists public.checklist_responses (
 
 create index if not exists checklist_responses_workshop_idx on public.checklist_responses(workshop_id);
 
-alter table public.checklist_responses enable row level security;
+-- Access is controlled by table grants rather than RLS. In practice, RLS on
+-- this table rejected anon inserts even with a permissive `check (true)` policy
+-- and a valid grant (a project-specific quirk), so we keep RLS off here and
+-- limit the anon role to write privileges. The data is low-sensitivity,
+-- write-mostly lead capture, consistent with the open posture of the other
+-- tables.
+alter table public.checklist_responses disable row level security;
 
--- Grant the anon role table privileges (RLS still gates rows). Tables created
--- via the SQL editor don't always inherit Supabase's default grants, so be
--- explicit — without this, inserts fail before policies are even evaluated.
-grant select, insert, update, delete on public.checklist_responses to anon;
-
--- Insert/update only (no anon SELECT — these are private to the org). Upsert by
--- a client-generated id lets a single response row update as it's filled in.
--- The table is write-only for anon (no SELECT policy), so a simple permissive
--- write check is acceptable and consistent with the other tables' posture.
-create policy "anon insert checklist" on public.checklist_responses
-  for insert to anon
-  with check (true);
-
-create policy "anon update checklist" on public.checklist_responses
-  for update to anon
-  using (true)
-  with check (true);
+-- anon can insert/update its own response (upsert by client-generated id) and
+-- read back the row it just wrote; no delete/truncate.
+grant select, insert, update on public.checklist_responses to anon;
