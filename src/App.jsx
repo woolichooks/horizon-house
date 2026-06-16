@@ -38,6 +38,7 @@ export default function App() {
   const [score, setScore]               = useState(0)
   const [debriefStep, setDebriefStep]   = useState(0)  // 0 = not started, 1–5 = items revealed
   const [muted, setMutedState]          = useState(false)
+  const [gameStarted, setGameStarted]   = useState(false)
 
   function handleToggleMute() {
     setMutedState(prev => {
@@ -48,8 +49,15 @@ export default function App() {
   }
 
   function startGame() {
-    playSound('start')
+    playSound(gameStarted ? 'transition' : 'start')
+    setGameStarted(true)
     setScreen('game')
+  }
+
+  // Return to the org-profile / story screen without losing game progress.
+  function goToStory() {
+    playSound('reveal')
+    setScreen('intro')
   }
 
   // Cash on hand updates per round reveal
@@ -119,6 +127,7 @@ export default function App() {
     setRoundStates(initialRoundStates)
     setScore(0)
     setDebriefStep(0)
+    setGameStarted(false)
   }
 
   const currentRoundData  = rounds[currentRound]
@@ -132,11 +141,24 @@ export default function App() {
         <OrgProfile
           org={orgProfile}
           onStart={startGame}
+          inProgress={gameStarted}
+          resumeRoundNumber={currentRoundData.number}
         />
       )}
 
       {screen === 'game' && (
         <>
+          <div style={{ marginBottom: '0.75rem' }}>
+            <button
+              type="button"
+              className="btn btn-outline"
+              onClick={goToStory}
+              style={{ fontSize: '12px', padding: '7px 14px' }}
+            >
+              ← Horizon House story &amp; background
+            </button>
+          </div>
+
           <CashBar
             cashOnHand={cashOnHand}
             receivables={77500}

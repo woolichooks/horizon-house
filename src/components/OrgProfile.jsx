@@ -3,8 +3,13 @@ import { useState } from 'react'
 
 function fmt(n) { return '$' + n.toLocaleString() }
 
-export default function OrgProfile({ org, onStart }) {
+export default function OrgProfile({ org, onStart, inProgress = false, resumeRoundNumber = 1 }) {
   const [showRisks, setShowRisks] = useState(false)
+
+  const primaryLabel = inProgress ? `Resume Round ${resumeRoundNumber} →` : 'Start Round 1 →'
+  const heroHint = inProgress
+    ? `Game in progress — review the story, then jump back into Round ${resumeRoundNumber}.`
+    : 'Read the org profile below, then begin when your team is ready.'
 
   return (
     <div className="fade-in">
@@ -36,10 +41,10 @@ export default function OrgProfile({ org, onStart }) {
         {/* Gold start button */}
         <div style={{ marginTop: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <button className="btn btn-gold" onClick={onStart} style={{ fontSize: '15px', padding: '13px 28px' }}>
-            Start Round 1 →
+            {primaryLabel}
           </button>
           <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)' }}>
-            Read the org profile below, then begin when your team is ready.
+            {heroHint}
           </span>
         </div>
       </div>
@@ -156,7 +161,7 @@ export default function OrgProfile({ org, onStart }) {
 
       <div style={{ textAlign: 'center', paddingBottom: '1rem' }}>
         <button className="btn btn-primary" onClick={onStart} style={{ fontSize: '15px', padding: '14px 36px' }}>
-          Start Round 1 — Let's go →
+          {inProgress ? `Back to Round ${resumeRoundNumber} →` : "Start Round 1 — Let's go →"}
         </button>
       </div>
     </div>
