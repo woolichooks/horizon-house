@@ -1,6 +1,6 @@
 // src/components/SnapshotCTA.jsx
 
-export default function SnapshotCTA({ cta, onRestart }) {
+export default function SnapshotCTA({ cta, onRestart, onTakeChecklist }) {
   return (
     <div className="fade-in">
       <div style={{
@@ -24,8 +24,8 @@ export default function SnapshotCTA({ cta, onRestart }) {
           {cta.body}
         </p>
         <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap', marginBottom: '1.25rem' }}>
-          <button className="btn btn-gold" style={{ fontSize: '15px', padding: '13px 28px' }}>
-            {cta.buttonText}
+          <button className="btn btn-gold" style={{ fontSize: '15px', padding: '13px 28px' }} onClick={onTakeChecklist}>
+            Take the checklist now →
           </button>
         </div>
         <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.6)', marginBottom: '6px' }}>

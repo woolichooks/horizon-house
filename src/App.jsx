@@ -22,6 +22,7 @@ import Scoreboard  from './components/Scoreboard.jsx'
 import FacilitatorThoughts from './components/FacilitatorThoughts.jsx'
 import Debrief     from './components/Debrief.jsx'
 import SnapshotCTA from './components/SnapshotCTA.jsx'
+import FinancialHealthSnapshot from './components/FinancialHealthSnapshot.jsx'
 
 // Initial per-round state
 const initialRoundStates = rounds.map(() => ({
@@ -41,7 +42,7 @@ function getDummyScores(roundsCompleted) {
 
 export default function App() {
   const [screen, setScreen]           = useState('setup')
-  // 'setup' | 'intro' | 'game' | 'debrief' | 'snapshot'
+  // 'setup' | 'intro' | 'game' | 'debrief' | 'snapshot' | 'checklist'
 
   const [currentRound, setCurrentRound] = useState(0)  // 0-indexed
   const [roundStates, setRoundStates]   = useState(initialRoundStates)
@@ -439,7 +440,15 @@ export default function App() {
       )}
 
       {screen === 'snapshot' && (
-        <SnapshotCTA cta={snapshotCTA} onRestart={handleRestart} />
+        <SnapshotCTA
+          cta={snapshotCTA}
+          onRestart={handleRestart}
+          onTakeChecklist={() => { playSound('transition'); setScreen('checklist') }}
+        />
+      )}
+
+      {screen === 'checklist' && (
+        <FinancialHealthSnapshot onRestart={handleRestart} />
       )}
     </div>
   )

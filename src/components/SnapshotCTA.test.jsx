@@ -27,4 +27,16 @@ describe('SnapshotCTA', () => {
     render(<SnapshotCTA cta={cta} />)
     expect(screen.queryByRole('button', { name: /play again/i })).not.toBeInTheDocument()
   })
+
+  it('leads with "Take the checklist now" and fires onTakeChecklist', async () => {
+    const user = userEvent.setup()
+    const onTakeChecklist = vi.fn()
+    render(<SnapshotCTA cta={cta} onTakeChecklist={onTakeChecklist} />)
+
+    const take = screen.getByRole('button', { name: /take the checklist now/i })
+    await user.click(take)
+    expect(onTakeChecklist).toHaveBeenCalledTimes(1)
+    // The old "Learn about the Snapshot" CTA is gone.
+    expect(screen.queryByRole('button', { name: /learn about the snapshot/i })).not.toBeInTheDocument()
+  })
 })
