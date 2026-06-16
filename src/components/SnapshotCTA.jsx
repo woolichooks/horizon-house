@@ -29,7 +29,18 @@ export default function SnapshotCTA({ cta, onRestart, onTakeChecklist }) {
           </button>
         </div>
         <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.6)', marginBottom: '6px' }}>
-          {cta.email} &nbsp;·&nbsp; {cta.website}
+          <a href={`mailto:${cta.email}`} style={{ color: '#fff', textDecoration: 'underline' }}>
+            {cta.email}
+          </a>
+          &nbsp;·&nbsp;
+          <a
+            href="https://www.woolichooks.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: '#fff', textDecoration: 'underline' }}
+          >
+            {cta.website}
+          </a>
         </div>
         <div style={{
           display: 'inline-block',
