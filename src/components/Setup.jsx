@@ -44,7 +44,7 @@ function ModePicker({ mode, onChange }) {
   )
 }
 
-export default function Setup({ configured, onLocalStart, onJoined }) {
+export default function Setup({ configured, onLocalStart, onJoined, onHosted }) {
   const [tab, setTab] = useState('join')       // 'host' | 'join'
   const [name, setName] = useState('')
   const [mode, setMode] = useState('online')
@@ -53,14 +53,15 @@ export default function Setup({ configured, onLocalStart, onJoined }) {
   const [error, setError] = useState('')
 
   const trimmedName = name.trim()
+  const hosting = configured && tab === 'host'
 
   async function handleSubmit(e) {
     e.preventDefault()
     setError('')
-    if (!trimmedName) { setError('Enter a team name to continue.'); return }
 
-    // No backend configured — play locally.
+    // No backend configured — play locally (team name required).
     if (!configured) {
+      if (!trimmedName) { setError('Enter a team name to continue.'); return }
       onLocalStart({ name: trimmedName, mode })
       return
     }
@@ -68,10 +69,11 @@ export default function Setup({ configured, onLocalStart, onJoined }) {
     setBusy(true)
     try {
       if (tab === 'host') {
+        // Facilitator: create a room only — not a competing team.
         const workshop = await createWorkshop()
-        const { team } = await joinWorkshop({ code: workshop.code, name: trimmedName, mode })
-        onJoined({ workshop, team, isHost: true })
+        onHosted({ workshop, hostName: trimmedName || 'Facilitator' })
       } else {
+        if (!trimmedName) { setError('Enter a team name to continue.'); setBusy(false); return }
         const joinCode = normalizeCode(code)
         if (!joinCode) { setError('Enter the workshop code from your facilitator.'); setBusy(false); return }
         const { workshop, team } = await joinWorkshop({ code: joinCode, name: trimmedName, mode })
@@ -139,11 +141,13 @@ export default function Setup({ configured, onLocalStart, onJoined }) {
         )}
 
         <div style={{ marginBottom: '1.1rem' }}>
-          <label style={labelStyle} htmlFor="team-name">TEAM NAME</label>
+          <label style={labelStyle} htmlFor="team-name">
+            {hosting ? 'YOUR NAME (FACILITATOR) — OPTIONAL' : 'TEAM NAME'}
+          </label>
           <input
             id="team-name"
             style={inputStyle}
-            placeholder="e.g. The Balance Sheets"
+            placeholder={hosting ? 'e.g. Marisol (facilitator)' : 'e.g. The Balance Sheets'}
             value={name}
             onChange={e => setName(e.target.value)}
             maxLength={40}
@@ -151,10 +155,19 @@ export default function Setup({ configured, onLocalStart, onJoined }) {
           />
         </div>
 
-        <div style={{ marginBottom: '1.25rem' }}>
-          <label style={labelStyle}>WORKSHOP MODE</label>
-          <ModePicker mode={mode} onChange={setMode} />
-        </div>
+        {!hosting && (
+          <div style={{ marginBottom: '1.25rem' }}>
+            <label style={labelStyle}>WORKSHOP MODE</label>
+            <ModePicker mode={mode} onChange={setMode} />
+          </div>
+        )}
+
+        {hosting && (
+          <p style={{ fontSize: '12px', color: 'var(--gray-dk)', marginBottom: '1.25rem' }}>
+            You’ll run the room: project the simulation, watch the live scoreboard, and see each
+            online team’s thinking. You won’t compete — teams join on their own devices with your code.
+          </p>
+        )}
 
         {error && (
           <div style={{
@@ -167,7 +180,7 @@ export default function Setup({ configured, onLocalStart, onJoined }) {
         )}
 
         <button type="submit" className="btn btn-primary btn-full" disabled={busy}>
-          {busy ? 'Setting up…' : !configured ? 'Continue →' : tab === 'host' ? 'Host & get a code →' : 'Join workshop →'}
+          {busy ? 'Setting up…' : !configured ? 'Continue →' : hosting ? 'Host & get a code →' : 'Join workshop →'}
         </button>
 
         {!configured && (

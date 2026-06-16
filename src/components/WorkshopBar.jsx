@@ -40,8 +40,12 @@ export default function WorkshopBar({ code, isHost, teamName, mode }) {
         <span style={{ color: 'rgba(255,255,255,0.85)' }}>
           {teamName}
         </span>
-        <span style={{ color: 'rgba(255,255,255,0.5)' }}>·</span>
-        <span style={{ color: 'rgba(255,255,255,0.6)' }}>{modeLabel[mode] || mode}</span>
+        {mode && (
+          <>
+            <span style={{ color: 'rgba(255,255,255,0.5)' }}>·</span>
+            <span style={{ color: 'rgba(255,255,255,0.6)' }}>{modeLabel[mode] || mode}</span>
+          </>
+        )}
       </div>
     </div>
   )

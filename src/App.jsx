@@ -3,7 +3,10 @@ import { rounds, debriefItems, discussionQuestions, dummyTeams, snapshotCTA } fr
 import orgProfile from './data/orgProfile.js'
 import { playSound, setMuted } from './utils/sound.js'
 import { isSupabaseConfigured } from './lib/supabase.js'
-import { fetchTeams, subscribeTeams, updateTeamScore, saveSubmission } from './lib/workshop.js'
+import {
+  fetchTeams, subscribeTeams, updateTeamScore, saveSubmission,
+  fetchSubmissions, subscribeSubmissions,
+} from './lib/workshop.js'
 
 import Header      from './components/Header.jsx'
 import Setup       from './components/Setup.jsx'
@@ -15,6 +18,7 @@ import CrisisBox   from './components/CrisisBox.jsx'
 import DecisionCards from './components/DecisionCards.jsx'
 import RevealPanel from './components/RevealPanel.jsx'
 import Scoreboard  from './components/Scoreboard.jsx'
+import FacilitatorThoughts from './components/FacilitatorThoughts.jsx'
 import Debrief     from './components/Debrief.jsx'
 import SnapshotCTA from './components/SnapshotCTA.jsx'
 
@@ -47,9 +51,12 @@ export default function App() {
 
   // Workshop / multiplayer state
   const [workshop, setWorkshop]   = useState(null)  // { id, code } or null (local play)
-  const [team, setTeam]           = useState(null)  // { id, name, mode }
+  const [team, setTeam]           = useState(null)  // { id, name, mode } — null for the host
   const [isHost, setIsHost]       = useState(false)
+  const [hostName, setHostName]   = useState('')
   const [liveTeams, setLiveTeams] = useState([])    // teams from Supabase realtime
+  const [liveSubmissions, setLiveSubmissions] = useState([]) // host: teams' submissions
+  const [hostRevealed, setHostRevealed] = useState([false, false, false]) // host reveal per round
 
   const online = team?.mode === 'online'
 
@@ -72,6 +79,23 @@ export default function App() {
     return () => { active = false; unsubscribe() }
   }, [workshop])
 
+  // The facilitator also watches submissions (teams' picks + thoughts).
+  useEffect(() => {
+    if (!workshop || !isHost || !isSupabaseConfigured) return
+    let active = true
+    const load = async () => {
+      try {
+        const subs = await fetchSubmissions(workshop.id)
+        if (active) setLiveSubmissions(subs)
+      } catch {
+        /* transient — next realtime event will refresh */
+      }
+    }
+    load()
+    const unsubscribe = subscribeSubmissions(workshop.id, load)
+    return () => { active = false; unsubscribe() }
+  }, [workshop, isHost])
+
   function handleToggleMute() {
     setMutedState(prev => {
       const next = !prev
@@ -87,11 +111,20 @@ export default function App() {
     setScreen('intro')
   }
 
-  function handleJoined({ workshop: ws, team: t, isHost: host }) {
+  function handleJoined({ workshop: ws, team: t }) {
     playSound('reveal')
     setTeam({ id: t.id, name: t.name, mode: t.mode })
     setWorkshop({ id: ws.id, code: ws.code })
-    setIsHost(Boolean(host))
+    setIsHost(false)
+    setScreen('intro')
+  }
+
+  function handleHosted({ workshop: ws, hostName: hn }) {
+    playSound('reveal')
+    setTeam(null)              // the facilitator is not a competing team
+    setHostName(hn)
+    setWorkshop({ id: ws.id, code: ws.code })
+    setIsHost(true)
     setScreen('intro')
   }
 
@@ -107,18 +140,22 @@ export default function App() {
     setScreen('intro')
   }
 
-  // Cash on hand updates per round reveal
-  const cashOnHand = roundStates[0].submitted && rounds[1].cashUpdate
-    ? (currentRound >= 1 ? rounds[1].cashUpdate.cash : 47000)
-    : 47000
-
   // Number of rounds whose reveal has been shown
-  const roundsRevealed = roundStates.filter(r => r.submitted).length
+  const roundsRevealed = isHost
+    ? hostRevealed.filter(Boolean).length
+    : roundStates.filter(r => r.submitted).length
+
+  // Cash on hand drops after Round 1 (the post-payroll figure from rounds.js).
+  const postPayrollCash = rounds[1].cashUpdate?.cash ?? 47000
+  const cashOnHand = isHost
+    ? (currentRound >= 1 ? postPayrollCash : 47000)
+    : (roundStates[0].submitted && currentRound >= 1 ? postPayrollCash : 47000)
 
   const yourScore = score
 
   // Scoreboard rows: real teams from the workshop, or just "you" when local.
-  // Keep our own row in sync with local score (DB write may lag a beat).
+  // The host has no team, so no row is "you". Keep our own row in sync with
+  // local score (the DB write may lag a beat).
   const realTeams = workshop
     ? liveTeams.map(t => ({
         id: t.id,
@@ -174,6 +211,12 @@ export default function App() {
     }
   }
 
+  // Host: reveal the CFO answer to the room for the current round.
+  function handleHostReveal() {
+    playSound('reveal')
+    setHostRevealed(prev => prev.map((v, i) => (i === currentRound ? true : v)))
+  }
+
   function handleNextRound() {
     playSound('transition')
     if (currentRound < rounds.length - 1) {
@@ -184,12 +227,16 @@ export default function App() {
   }
 
   function handleTabClick(index) {
-    // Can only navigate to a round if the previous one is submitted (or it's already done)
+    if (isHost) {
+      // Facilitator can revisit any round they've reached or revealed.
+      if (index <= currentRound || hostRevealed[index]) setCurrentRound(index)
+      return
+    }
+    // Players: only navigate to a round once the previous one is submitted.
     if (index > currentRound) return
     if (index < currentRound && roundStates[index].submitted) {
       setCurrentRound(index)
     }
-    if (index === currentRound) return
   }
 
   function handleDebriefNext() {
@@ -210,6 +257,7 @@ export default function App() {
     setScore(0)
     setDebriefStep(0)
     setGameStarted(false)
+    setHostRevealed([false, false, false])
     if (workshop && team && isSupabaseConfigured) {
       updateTeamScore(team.id, 0)
         .catch(err => console.error('[Horizon House] updateTeamScore (reset) failed:', err?.message || err))
@@ -218,6 +266,9 @@ export default function App() {
 
   const currentRoundData  = rounds[currentRound]
   const currentRoundState = roundStates[currentRound]
+  const isLastRound = currentRound === rounds.length - 1
+  const revealedHere = hostRevealed[currentRound]
+  const correctCard = currentRoundData.cards.find(c => c.isCorrect)
 
   return (
     <div className="app-shell">
@@ -228,11 +279,17 @@ export default function App() {
           configured={isSupabaseConfigured}
           onLocalStart={handleLocalStart}
           onJoined={handleJoined}
+          onHosted={handleHosted}
         />
       )}
 
       {workshop && screen !== 'setup' && (
-        <WorkshopBar code={workshop.code} isHost={isHost} teamName={team?.name} mode={team?.mode} />
+        <WorkshopBar
+          code={workshop.code}
+          isHost={isHost}
+          teamName={isHost ? hostName : team?.name}
+          mode={isHost ? null : team?.mode}
+        />
       )}
 
       {screen === 'intro' && (
@@ -244,25 +301,79 @@ export default function App() {
         />
       )}
 
-      {screen === 'game' && (
+      {/* ── Facilitator console ─────────────────────────────────────────── */}
+      {screen === 'game' && isHost && (
         <>
           <div style={{ marginBottom: '0.75rem' }}>
-            <button
-              type="button"
-              className="btn btn-outline"
-              onClick={goToStory}
-              style={{ fontSize: '12px', padding: '7px 14px' }}
-            >
+            <button type="button" className="btn btn-outline" onClick={goToStory} style={{ fontSize: '12px', padding: '7px 14px' }}>
               ← Horizon House story &amp; background
             </button>
           </div>
 
-          <CashBar
-            cashOnHand={cashOnHand}
-            receivables={77500}
-            restrictedGrant={200000}
-            score={yourScore}
+          <CashBar cashOnHand={cashOnHand} receivables={77500} restrictedGrant={200000} score={null} />
+
+          <RoundTabs
+            rounds={rounds}
+            currentRound={currentRound}
+            roundStates={hostRevealed.map(r => ({ submitted: r }))}
+            onTabClick={handleTabClick}
           />
+
+          {currentRoundData.bridgeText && !revealedHere && currentRound > 0 && (
+            <div className="bridge-callout card-panel" style={{ marginBottom: '1rem' }}>
+              <p style={{ fontStyle: 'italic', fontSize: '13px', color: 'var(--navy)' }}>{currentRoundData.bridgeText}</p>
+            </div>
+          )}
+
+          <CrisisBox round={currentRoundData} />
+
+          <DecisionCards
+            round={currentRoundData}
+            roundState={currentRoundState}
+            readOnly
+            revealed={revealedHere}
+          />
+
+          {!revealedHere ? (
+            <button className="btn btn-gold btn-full" onClick={handleHostReveal} style={{ marginBottom: '1rem' }}>
+              ★ Reveal the CFO move to the room →
+            </button>
+          ) : (
+            <div className="fade-in" style={{ marginBottom: '1rem' }}>
+              <div style={{ background: 'var(--ok-bg)', borderLeft: '4px solid var(--ok-bor)', borderRadius: '10px', padding: '1rem 1.25rem', marginBottom: '10px' }}>
+                <div style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: '14px', color: 'var(--ok-txt)', marginBottom: '5px' }}>
+                  ★ CFO move — Option {correctCard.letter}
+                </div>
+                <p style={{ fontSize: '13px', lineHeight: 1.65, color: 'var(--navy)' }}>{correctCard.revealText}</p>
+              </div>
+              <div style={{ background: 'var(--navy)', borderRadius: '10px', padding: '1rem 1.25rem', marginBottom: '12px' }}>
+                <div style={{ fontFamily: 'var(--font-head)', fontWeight: 700, fontSize: '10px', color: 'var(--gold)', letterSpacing: '0.08em', marginBottom: '6px' }}>
+                  WHAT THE CFO WOULD HAVE DONE
+                </div>
+                <p style={{ fontSize: '13px', lineHeight: 1.65, color: 'rgba(255,255,255,0.88)' }}>{currentRoundData.cfoInsight}</p>
+              </div>
+              <button className="btn btn-outline btn-full" onClick={handleNextRound}>
+                {isLastRound ? 'See the full debrief →' : `Continue to Round ${currentRoundData.number + 1} →`}
+              </button>
+            </div>
+          )}
+
+          <FacilitatorThoughts teams={liveTeams} submissions={liveSubmissions} round={currentRound} />
+
+          <Scoreboard teams={realTeams} dummyScores={showDummies ? dummyScores : []} maxScore={90} />
+        </>
+      )}
+
+      {/* ── Player view ─────────────────────────────────────────────────── */}
+      {screen === 'game' && !isHost && (
+        <>
+          <div style={{ marginBottom: '0.75rem' }}>
+            <button type="button" className="btn btn-outline" onClick={goToStory} style={{ fontSize: '12px', padding: '7px 14px' }}>
+              ← Horizon House story &amp; background
+            </button>
+          </div>
+
+          <CashBar cashOnHand={cashOnHand} receivables={77500} restrictedGrant={200000} score={yourScore} />
 
           <RoundTabs
             rounds={rounds}
@@ -273,9 +384,7 @@ export default function App() {
 
           {currentRoundData.bridgeText && !currentRoundState.submitted && currentRound > 0 && (
             <div className="bridge-callout card-panel" style={{ marginBottom: '1rem' }}>
-              <p style={{ fontStyle: 'italic', fontSize: '13px', color: 'var(--navy)' }}>
-                {currentRoundData.bridgeText}
-              </p>
+              <p style={{ fontStyle: 'italic', fontSize: '13px', color: 'var(--navy)' }}>{currentRoundData.bridgeText}</p>
             </div>
           )}
 
@@ -294,16 +403,12 @@ export default function App() {
             <RevealPanel
               round={currentRoundData}
               roundState={currentRoundState}
-              isLastRound={currentRound === rounds.length - 1}
+              isLastRound={isLastRound}
               onNext={handleNextRound}
             />
           )}
 
-          <Scoreboard
-            teams={realTeams}
-            dummyScores={showDummies ? dummyScores : []}
-            maxScore={90}
-          />
+          <Scoreboard teams={realTeams} dummyScores={showDummies ? dummyScores : []} maxScore={90} />
         </>
       )}
 

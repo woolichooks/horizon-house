@@ -39,22 +39,24 @@ export default function CashBar({ cashOnHand, receivables, restrictedGrant, scor
         sub="Caldwell Foundation — adult program only"
       />
 
-      <div style={{ marginLeft: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '3px' }}>
-        <span style={{ fontSize: '11px', color: 'var(--gray-dk)', fontFamily: 'var(--font-head)', fontWeight: 500 }}>
-          TEAM SCORE
-        </span>
-        <span style={{
-          background: 'var(--blue)',
-          color: '#fff',
-          fontFamily: 'var(--font-head)',
-          fontWeight: 700,
-          fontSize: '16px',
-          padding: '5px 14px',
-          borderRadius: '8px',
-        }}>
-          {score} pts
-        </span>
-      </div>
+      {score != null && (
+        <div style={{ marginLeft: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '3px' }}>
+          <span style={{ fontSize: '11px', color: 'var(--gray-dk)', fontFamily: 'var(--font-head)', fontWeight: 500 }}>
+            TEAM SCORE
+          </span>
+          <span style={{
+            background: 'var(--blue)',
+            color: '#fff',
+            fontFamily: 'var(--font-head)',
+            fontWeight: 700,
+            fontSize: '16px',
+            padding: '5px 14px',
+            borderRadius: '8px',
+          }}>
+            {score} pts
+          </span>
+        </div>
+      )}
     </div>
   )
 }
