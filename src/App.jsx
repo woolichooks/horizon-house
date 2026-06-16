@@ -7,6 +7,7 @@ import {
   fetchTeams, subscribeTeams, updateTeamScore, saveSubmission,
   fetchSubmissions, subscribeSubmissions,
 } from './lib/workshop.js'
+import { buildPlayerSummary, buildFacilitatorSummary } from './lib/debrief.js'
 
 import Header      from './components/Header.jsx'
 import Setup       from './components/Setup.jsx'
@@ -267,6 +268,10 @@ export default function App() {
   const currentRoundData  = rounds[currentRound]
   const currentRoundState = roundStates[currentRound]
   const isLastRound = currentRound === rounds.length - 1
+
+  // Debrief summaries (cheap to compute; one is used depending on role).
+  const playerSummary = buildPlayerSummary(roundStates, rounds)
+  const facilitatorSummary = buildFacilitatorSummary(liveTeams, liveSubmissions, rounds)
   const revealedHere = hostRevealed[currentRound]
   const correctCard = currentRoundData.cards.find(c => c.isCorrect)
 
@@ -419,6 +424,9 @@ export default function App() {
           step={debriefStep}
           finalScore={yourScore}
           onNext={handleDebriefNext}
+          isHost={isHost}
+          playerSummary={playerSummary}
+          facilitatorSummary={facilitatorSummary}
         />
       )}
 
