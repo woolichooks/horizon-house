@@ -437,7 +437,7 @@ export default function FinancialHealthSnapshot({ orgName = '', onRestart, works
           <textarea
             value={notes}
             onChange={e => setNotes(e.target.value)}
-            placeholder="Observations, follow-up items, what surprised them most…"
+            placeholder="List your observations, follow-up items, what surprised you the most, what's currently stressing you out…"
             style={{
               width: '100%',
               minHeight: '80px',
