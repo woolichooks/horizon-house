@@ -11,6 +11,7 @@ create table if not exists public.checklist_responses (
   workshop_id  uuid references public.workshops(id) on delete set null,
   team_id      uuid references public.teams(id) on delete set null,
   org_name     text,
+  email        text,
   score        int,        -- 0..100 (percent), or null
   answered     int,        -- 0..25
   strengths    int,

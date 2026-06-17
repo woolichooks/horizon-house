@@ -23,7 +23,7 @@ export async function saveChecklistResponse(payload) {
 
 // Build a mailto link pre-filled with the participant's results (no attachment
 // — mailto can't carry files — but the score + priorities ride in the body).
-export function buildSnapshotMailto({ to, orgName, score, interpLabel, priorities = [] }) {
+export function buildSnapshotMailto({ to, orgName, email, score, interpLabel, priorities = [] }) {
   const org = orgName ? ` for ${orgName}` : ''
   const subject = `Financial Health Snapshot — schedule my session${org}`
 
@@ -34,6 +34,7 @@ export function buildSnapshotMailto({ to, orgName, score, interpLabel, prioritie
     ``,
     score != null ? `My self-assessment score: ${score}%` : `My self-assessment is partially complete.`,
     interpLabel ? `Read: ${interpLabel}` : null,
+    email ? `Contact email: ${email}` : null,
   ].filter(Boolean)
 
   if (priorities.length) {

@@ -14,6 +14,11 @@ describe('FinancialHealthSnapshot', () => {
     expect(screen.getByText('—')).toBeInTheDocument() // no answers yet
   })
 
+  it('has Organization, Annual budget and Email fields', () => {
+    render(<FinancialHealthSnapshot />)
+    expect(screen.getByPlaceholderText(/you@org\.org/i)).toBeInTheDocument()
+  })
+
   it('scores a "Yes" on an in-place control as a strength (100%)', async () => {
     const user = userEvent.setup()
     render(<FinancialHealthSnapshot />)

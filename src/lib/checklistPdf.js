@@ -7,7 +7,7 @@ const ANSWER_LABEL = { yes: 'Yes', no: 'No', na: 'N/A' }
 // Build a jsPDF document from the checklist data. Exposed for testing.
 export async function buildChecklistDoc(data) {
   const { jsPDF } = await import('jspdf')
-  const { orgName, budget, date, stats, sections, answers, notes } = data
+  const { orgName, budget, email, date, stats, sections, answers, notes } = data
 
   const doc = new jsPDF({ unit: 'pt', format: 'letter' })
   const margin = 48
@@ -35,8 +35,12 @@ export async function buildChecklistDoc(data) {
   // Header
   text('Woolichooks — Financial Health Snapshot', 16, 'bold', [25, 90, 241])
   gap(2)
-  const meta = [orgName ? `Organization: ${orgName}` : null, budget ? `Annual budget: ${budget}` : null, date ? `Date: ${date}` : null]
-    .filter(Boolean).join('     ')
+  const meta = [
+    orgName ? `Organization: ${orgName}` : null,
+    budget ? `Annual budget: ${budget}` : null,
+    email ? `Email: ${email}` : null,
+    date ? `Date: ${date}` : null,
+  ].filter(Boolean).join('     ')
   if (meta) text(meta, 10, 'normal', [120, 120, 120])
   gap(6)
 

@@ -87,6 +87,7 @@ export default function FinancialHealthSnapshot({ orgName = '', onRestart, works
 
   const [orgInput, setOrgInput]   = useState(orgName)
   const [budgetInput, setBudget]  = useState('')
+  const [emailInput, setEmail]    = useState('')
   const [dateInput]               = useState(() => new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }))
   const [openSections, setOpenSections] = useState(new Set(['cash']))
   const [notes, setNotes]         = useState('')
@@ -146,6 +147,7 @@ export default function FinancialHealthSnapshot({ orgName = '', onRestart, works
     workshop_id: workshopId,
     team_id: teamId,
     org_name: orgInput || null,
+    email: emailInput || null,
     score: stats.pct,
     answered: stats.answered,
     strengths: stats.yes,
@@ -153,7 +155,7 @@ export default function FinancialHealthSnapshot({ orgName = '', onRestart, works
     answers,
     priorities: stats.priorities,
     notes: notes || null,
-  }), [responseId, workshopId, teamId, orgInput, notes, answers, stats])
+  }), [responseId, workshopId, teamId, orgInput, emailInput, notes, answers, stats])
 
   // Refs keep the latest values available to event-listener / unmount flushes.
   const payloadRef = useRef(savePayload)
@@ -218,6 +220,7 @@ export default function FinancialHealthSnapshot({ orgName = '', onRestart, works
   const mailtoHref = buildSnapshotMailto({
     to: 'hello@woolichooks.com',
     orgName: orgInput,
+    email: emailInput,
     score: stats.pct,
     interpLabel: stats.interp ? stats.interp.label : null,
     priorities: stats.priorities,
@@ -228,6 +231,7 @@ export default function FinancialHealthSnapshot({ orgName = '', onRestart, works
     downloadChecklistPdf({
       orgName: orgInput,
       budget: budgetInput,
+      email: emailInput,
       date: dateInput,
       stats,
       sections: checklistSections,
@@ -261,6 +265,7 @@ export default function FinancialHealthSnapshot({ orgName = '', onRestart, works
             { label: 'Organization', value: orgInput, onChange: setOrgInput, width: 180 },
             { label: 'Annual budget', value: budgetInput, onChange: setBudget, placeholder: 'e.g. $800,000', width: 140 },
             { label: 'Date', value: dateInput, onChange: () => {}, readOnly: true, width: 120 },
+            { label: 'Email', value: emailInput, onChange: setEmail, placeholder: 'you@org.org', type: 'email', width: 180 },
           ].map(f => (
             <div key={f.label}>
               <div style={{ fontSize: '10px', fontFamily: 'var(--font-head)', fontWeight: 700, letterSpacing: '0.06em', color: 'rgba(255,255,255,0.6)', marginBottom: '3px' }}>
@@ -268,6 +273,7 @@ export default function FinancialHealthSnapshot({ orgName = '', onRestart, works
               </div>
               <input
                 className="snapshot-meta-input"
+                type={f.type || 'text'}
                 value={f.value}
                 onChange={e => f.onChange(e.target.value)}
                 readOnly={f.readOnly}
